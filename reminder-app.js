@@ -1,4 +1,3 @@
-/* Important */
 let http = require('http')
 let https = require('https')
 let path = require('path')
@@ -7,10 +6,7 @@ let express = require('express')
 let MAX_REMINDERS = 4;
 const dbUtils = require('./db_utils');
 const tableUtils = require('./table_utils')
-const PORT = process.env.PORT
-
-const AWS_ACCESS_KEY = process.env.AWS_ACCESS_KEY;
-const AWS_SECRET_KEY = process.env.AWS_SECRET_KEY;
+const PORT = process.env.PORT || 5001;
 const url = process.env.API_GWAY;
 
 let app = express()
