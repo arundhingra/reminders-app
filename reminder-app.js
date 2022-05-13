@@ -82,6 +82,23 @@ app.get("/delete", async (request, response) => {
 app.post("/delete", async (request, response) => {
     let { toDelete } = request.body;
     await dbUtils.dbCommand('delete', toDelete);
+
+    const options = {
+        host: url,
+        port: 443,
+        path: '/test1/process-delete',
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    }
+    const req = https.request(options, res => { 
+        console.log(res.statusCode)
+    });
+
+    req.write(JSON.stringify({event_name: toDelete}));
+    req.end();
+
     let resultList = await dbUtils.dbCommand('findAll')
     let lst = tableUtils.reminderList(resultList)
     response.render("delete", {reminderTable: lst})
