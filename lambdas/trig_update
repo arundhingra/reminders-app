@@ -1,0 +1,103 @@
+import json
+import boto3
+from datetime import datetime, timedelta
+
+'''
+{
+  "id": "cdc73f9d-aea9-11e3-9d5a-835b769c0d9c",
+  "detail-type": "Scheduled Event",
+  "source": "aws.events",
+  "account": "123456789012",
+  "time": "1970-01-01T00:00:00Z",
+  "region": "us-east-1",
+  "resources": [
+    "arn:aws:events:us-east-1:123456789012:rule/eventDaily"
+  ],
+  "detail": {}
+}
+'''
+
+def get_event(event_name):
+    client = boto3.client('dynamodb')
+    res = client.get_item(
+        TableName='reminders',
+        Key={
+            'event_name': {
+                "S": event_name
+            }
+        }
+    )
+    print(res)
+    return (res['Item']['event_date']['S'], res['Item']['alarm_time']['S'])
+    
+    
+def send_msg(event_name, event_date):
+    client = boto3.client('sns')
+    date = event_date.strftime('%a (%-m/%-d) @ %-I:%M%p')
+    msg = "REMINDER: {} on {}!! Don't forget!!!!!!!!".format(event_name, date)
+    
+    client.publish(
+        TopicArn='arn:aws:sns:us-east-1:123456789:reminder',
+        Message=msg,
+    )
+    
+def update_rule(rule_name, event_name, event_date, alarm_time):
+    client = boto3.client('events')
+    now = datetime.now()
+    
+    
+    if 'Weekly' in rule_name and event_date - now <= timedelta(weeks=1):
+        # create new daily reminder
+        cron = 'cron({} {} * * ? *)'.format(alarm_time.minute, alarm_time.hour)
+        client.put_rule(Name=event_name + 'Daily', ScheduleExpression=cron)
+        client.put_targets(Rule=event_name + 'Daily', Targets=[
+            {
+                'Id': event_name + 'Daily',
+                'Arn': 'arn:aws:lambda:us-east-1:123456789:function:trig-update'
+            }
+        ])
+        
+        # remove the weekly reminder
+        client.remove_targets(
+            Rule=rule_name,
+            Ids=[event_name + 'Weekly']
+        )
+        client.delete_rule(Name=rule_name)
+        print('now a daily rule')
+    elif 'Daily' in rule_name and event_date - now <= timedelta(days=1):
+        # remove the reminder
+        client.remove_targets(
+            Rule=rule_name,
+            Ids=[event_name + 'Daily']
+        )
+        client.delete_rule(Name=rule_name)
+        print('deleted rule')
+    else:
+        print('nothing to do')
+        
+def lambda_handler(event, context):
+    rule_arn = event['resources'][0]
+    rule_name = rule_arn[rule_arn.index('/') + 1:]
+    event_name = ''
+    
+    if 'Daily' in rule_name:
+        event_name = rule_name.replace('Daily', '')
+    else:
+        event_name = rule_name.replace('Weekly', '')
+    
+    event_date, alarm_time = get_event(event_name)
+    
+    event_name = event_name.replace('q8t3n', ' ')
+
+
+    event_date = datetime.strptime(event_date, '%Y-%m-%dT%H:%M')
+    alarm_time = datetime.strptime(alarm_time, '%H:%M')
+    
+    send_msg(event_name, event_date)
+    
+    update_rule(rule_name, event_name, event_date, alarm_time)
+    
+    return {
+        'statusCode': 200,
+        'body': json.dumps('Hello from Lambda!')
+    }
