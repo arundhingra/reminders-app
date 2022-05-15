@@ -21,4 +21,4 @@ On trigger, the lambda function evaluates whether or not a rule should be change
 Documentation will later be provided regarding the AWS-side of things, but to start off with the web app, all that needs to be done is a quick `npm i` to install related packages (node & express, http(s), dotenv, and ejs) and `node reminders.js`!
 
 
-[Demo] (https://www.youtube.com/watch?v=zFtKwKp-OVM)
+[Demo](https://www.youtube.com/watch?v=zFtKwKp-OVM)
